@@ -73,6 +73,12 @@
 			"revisionTime": "2017-01-02T09:48:09Z"
 		},
 		{
+			"checksumSHA1": "yqETaGs43hbxuaBGUP7YT/tiRDg=",
+			"path": "github.com/buger/jsonparser",
+			"revision": "bb14bb6c38f6cf1706ef55278891d184b6a51b0e",
+			"revisionTime": "2017-06-03T06:26:59Z"
+		},
+		{
 			"checksumSHA1": "m6QMy+u/IX6knzP28DqMn4sdLSw=",
 			"path": "github.com/cenk/backoff",
 			"revision": "b02f2bbce11d7ea6b97f282ef1771b0fe2f65ef3",
@@ -307,6 +313,18 @@
 			"path": "github.com/pmylund/go-cache",
 			"revision": "1881a9bccb818787f68c52bfba648c6cf34c34fa",
 			"revisionTime": "2016-01-27T17:00:04Z"
+		},
+		{
+			"checksumSHA1": "RZVKxsKlxY9qoeEhXad1EwMVrqs=",
+			"path": "github.com/qntfy/kazaam",
+			"revision": "ae9547fd287ce994cb61a096d61569693829c715",
+			"revisionTime": "2017-06-21T18:54:53Z"
+		},
+		{
+			"checksumSHA1": "M8iNoPUlCT/jYkOrw6lKbIVVWJ0=",
+			"path": "github.com/qntfy/kazaam/transform",
+			"revision": "ae9547fd287ce994cb61a096d61569693829c715",
+			"revisionTime": "2017-06-21T18:54:53Z"
 		},
 		{
 			"checksumSHA1": "5qwv3yDROEz5ZV8HztOBmQxen8c=",
