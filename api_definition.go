@@ -13,6 +13,7 @@ import (
 	textTemplate "text/template"
 	"time"
 
+	"github.com/qntfy/kazaam"
 	"github.com/rubyist/circuitbreaker"
 
 	"github.com/TykTechnologies/tyk/apidef"
@@ -35,9 +36,11 @@ const (
 	BlackList
 	Cached
 	Transformed
+	TransformedKazaam
 	HeaderInjected
 	HeaderInjectedResponse
 	TransformedResponse
+	TransformedKazaamResponse
 	HardTimeout
 	CircuitBreaker
 	URLRewrite
@@ -63,6 +66,8 @@ const (
 	StatusCached                   RequestStatus = "Cached path"
 	StatusTransform                RequestStatus = "Transformed path"
 	StatusTransformResponse        RequestStatus = "Transformed response"
+	StatusTransformKazaam          RequestStatus = "Transformed with Kazaam"
+	StatusTransformKazaamResponse  RequestStatus = "Transformed response with Kazaam"
 	StatusHeaderInjected           RequestStatus = "Header injected"
 	StatusMethodTransformed        RequestStatus = "Method Transformed"
 	StatusHeaderInjectedResponse   RequestStatus = "Header injected on response"
@@ -80,26 +85,33 @@ const (
 // path is on any of the white, plack or ignored lists. This is generated as part of the
 // configuration init
 type URLSpec struct {
-	Spec                    *regexp.Regexp
-	Status                  URLStatus
-	MethodActions           map[string]apidef.EndpointMethodMeta
-	TransformAction         TransformSpec
-	TransformResponseAction TransformSpec
-	InjectHeaders           apidef.HeaderInjectionMeta
-	InjectHeadersResponse   apidef.HeaderInjectionMeta
-	HardTimeout             apidef.HardTimeoutMeta
-	CircuitBreaker          ExtendedCircuitBreakerMeta
-	URLRewrite              apidef.URLRewriteMeta
-	VirtualPathSpec         apidef.VirtualMeta
-	RequestSize             apidef.RequestSizeMeta
-	MethodTransform         apidef.MethodTransformMeta
-	TrackEndpoint           apidef.TrackEndpointMeta
-	DoNotTrackEndpoint      apidef.TrackEndpointMeta
+	Spec                          *regexp.Regexp
+	Status                        URLStatus
+	MethodActions                 map[string]apidef.EndpointMethodMeta
+	TransformAction               TransformSpec
+	TransformResponseAction       TransformSpec
+	TransformKazaamAction         TransformKazaamSpec
+	TransformKazaamResponseAction TransformKazaamSpec
+	InjectHeaders                 apidef.HeaderInjectionMeta
+	InjectHeadersResponse         apidef.HeaderInjectionMeta
+	HardTimeout                   apidef.HardTimeoutMeta
+	CircuitBreaker                ExtendedCircuitBreakerMeta
+	URLRewrite                    apidef.URLRewriteMeta
+	VirtualPathSpec               apidef.VirtualMeta
+	RequestSize                   apidef.RequestSizeMeta
+	MethodTransform               apidef.MethodTransformMeta
+	TrackEndpoint                 apidef.TrackEndpointMeta
+	DoNotTrackEndpoint            apidef.TrackEndpointMeta
 }
 
 type TransformSpec struct {
 	apidef.TemplateMeta
 	Template *textTemplate.Template
+}
+
+type TransformKazaamSpec struct {
+	apidef.TransformKazaamMeta
+	Spec *kazaam.Kazaam
 }
 
 type ExtendedCircuitBreakerMeta struct {
@@ -538,6 +550,50 @@ func (a *APIDefinitionLoader) compileTransformPathSpec(paths []apidef.TemplateMe
 	return urlSpec
 }
 
+func (a *APIDefinitionLoader) loadKazaamTransform(specFilename string) (*kazaam.Kazaam, error) {
+	if specFilename == "" {
+		return nil, errors.New("Must specify a Kazaam specification file")
+	}
+	specFile, specFileError := ioutil.ReadFile(specFilename)
+	if specFileError != nil {
+		return nil, errors.New("Unable to read Kazaam specification file: " + specFileError.Error())
+	}
+	k, specError := kazaam.NewKazaam(string(specFile))
+	if specError != nil {
+		return nil, errors.New("Unable to load Kazaam specification file: " + specError.Error())
+	}
+	return k, nil
+}
+
+func (a *APIDefinitionLoader) compileTransformKazaamPathSpec(paths []apidef.TransformKazaamMeta, stat URLStatus) []URLSpec {
+	urlSpec := []URLSpec{}
+
+	log.Debug("Checking for Kazaam transform paths...")
+	for _, stringSpec := range paths {
+		newSpec := URLSpec{}
+		a.generateRegex(stringSpec.Path, &newSpec, stat)
+		newTransformSpec := TransformKazaamSpec{TransformKazaamMeta: stringSpec}
+
+		var err error
+		newTransformSpec.Spec, err = a.loadKazaamTransform(stringSpec.KazaamData.SpecFile)
+
+		if stat == TransformedKazaam {
+			newSpec.TransformKazaamAction = newTransformSpec
+		} else {
+			newSpec.TransformKazaamResponseAction = newTransformSpec
+		}
+
+		if err == nil {
+			urlSpec = append(urlSpec, newSpec)
+			log.Debug("-- Kazaam spec Loaded")
+		} else {
+			log.Error("Kazaam spec file load failure! Skipping transformation: ", err)
+		}
+	}
+
+	return urlSpec
+}
+
 func (a *APIDefinitionLoader) compileInjectedHeaderSpec(paths []apidef.HeaderInjectionMeta, stat URLStatus) []URLSpec {
 	// transform an extended configuration URL into an array of URLSpecs
 	// This way we can iterate the whole array once, on match we break with status
@@ -750,6 +806,8 @@ func (a *APIDefinitionLoader) getExtendedPathSpecs(apiVersionDef apidef.VersionI
 	cachedPaths := a.compileCachedPathSpec(apiVersionDef.ExtendedPaths.Cached)
 	transformPaths := a.compileTransformPathSpec(apiVersionDef.ExtendedPaths.Transform, Transformed)
 	transformResponsePaths := a.compileTransformPathSpec(apiVersionDef.ExtendedPaths.TransformResponse, TransformedResponse)
+	transformKazaamPaths := a.compileTransformKazaamPathSpec(apiVersionDef.ExtendedPaths.TransformKazaam, TransformedKazaam)
+	transformKazaamResponsePaths := a.compileTransformKazaamPathSpec(apiVersionDef.ExtendedPaths.TransformKazaamResponse, TransformedKazaamResponse)
 	headerTransformPaths := a.compileInjectedHeaderSpec(apiVersionDef.ExtendedPaths.TransformHeader, HeaderInjected)
 	headerTransformPathsOnResponse := a.compileInjectedHeaderSpec(apiVersionDef.ExtendedPaths.TransformResponseHeader, HeaderInjectedResponse)
 	hardTimeouts := a.compileTimeoutPathSpec(apiVersionDef.ExtendedPaths.HardTimeouts, HardTimeout)
@@ -768,6 +826,8 @@ func (a *APIDefinitionLoader) getExtendedPathSpecs(apiVersionDef apidef.VersionI
 	combinedPath = append(combinedPath, cachedPaths...)
 	combinedPath = append(combinedPath, transformPaths...)
 	combinedPath = append(combinedPath, transformResponsePaths...)
+	combinedPath = append(combinedPath, transformKazaamPaths...)
+	combinedPath = append(combinedPath, transformKazaamResponsePaths...)
 	combinedPath = append(combinedPath, headerTransformPaths...)
 	combinedPath = append(combinedPath, headerTransformPathsOnResponse...)
 	combinedPath = append(combinedPath, hardTimeouts...)
@@ -903,6 +963,10 @@ func (a *APISpec) CheckSpecMatchesStatus(url string, method string, rxPaths []UR
 			if method == v.TransformAction.Method {
 				return true, &v.TransformAction
 			}
+		case TransformedKazaam:
+			if method == v.TransformKazaamAction.Method {
+				return true, &v.TransformKazaamAction
+			}
 		case HeaderInjected:
 			if method == v.InjectHeaders.Method {
 				return true, &v.InjectHeaders
@@ -914,6 +978,10 @@ func (a *APISpec) CheckSpecMatchesStatus(url string, method string, rxPaths []UR
 		case TransformedResponse:
 			if method == v.TransformResponseAction.Method {
 				return true, &v.TransformResponseAction
+			}
+		case TransformedKazaamResponse:
+			if method == v.TransformKazaamResponseAction.Method {
+				return true, &v.TransformKazaamResponseAction
 			}
 		case HardTimeout:
 			if method == v.HardTimeout.Method {

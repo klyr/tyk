@@ -80,6 +80,14 @@ type TemplateMeta struct {
 	Method string `bson:"method" json:"method"`
 }
 
+type TransformKazaamMeta struct {
+	KazaamData struct {
+		SpecFile string `bson:"spec_file" json:"spec_file"`
+	} `bson:"kazaam_data" json:"kazaam_data"`
+	Path   string `bson:"path" json:"path"`
+	Method string `bson:"method" json:"method"`
+}
+
 type HeaderInjectionMeta struct {
 	DeleteHeaders []string          `bson:"delete_headers" json:"delete_headers"`
 	AddHeaders    map[string]string `bson:"add_headers" json:"add_headers"`
@@ -142,6 +150,8 @@ type ExtendedPathsSet struct {
 	Cached                  []string              `bson:"cache" json:"cache,omitempty"`
 	Transform               []TemplateMeta        `bson:"transform" json:"transform,omitempty"`
 	TransformResponse       []TemplateMeta        `bson:"transform_response" json:"transform_response,omitempty"`
+	TransformKazaam         []TransformKazaamMeta `bson:"transform_kazaam" json:"transform_kazaam,omitempty"`
+	TransformKazaamResponse []TransformKazaamMeta `bson:"transform_kazaam_response" json:"transform_kazaam_response,omitempty"`
 	TransformHeader         []HeaderInjectionMeta `bson:"transform_headers" json:"transform_headers,omitempty"`
 	TransformResponseHeader []HeaderInjectionMeta `bson:"transform_response_headers" json:"transform_response_headers,omitempty"`
 	HardTimeouts            []HardTimeoutMeta     `bson:"hard_timeouts" json:"hard_timeouts,omitempty"`
