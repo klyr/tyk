@@ -129,6 +129,8 @@ func GetResponseProcessorByName(name string) (TykResponseHandler, error) {
 		return HeaderInjector{}, nil
 	case "response_body_transform":
 		return ResponseTransformMiddleware{}, nil
+	case "transform_kazaam_response":
+		return ResponseTransformKazaamMiddleware{}, nil
 	case "header_transform":
 		return HeaderTransform{}, nil
 	default:
