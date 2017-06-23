@@ -26,8 +26,7 @@
 				                "path": "widgets/{id}",
 				                "method": "POST",
 				                "kazaam_data": {
-				                    "template_mode": "file",
-				                    "template_source": "./templates/spec1.json"
+				                    "spec_file": "./templates/spec1.json"
 				                }
 				            }
 				    ]
