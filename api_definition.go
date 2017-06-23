@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/qntfy/kazaam"
+	"github.com/qntfy/kazaam/transform"
 	"github.com/rubyist/circuitbreaker"
 
 	"github.com/TykTechnologies/tyk/apidef"
@@ -558,10 +559,14 @@ func (a *APIDefinitionLoader) loadKazaamTransform(specFilename string) (*kazaam.
 	if specFileError != nil {
 		return nil, errors.New("Unable to read Kazaam specification file: " + specFileError.Error())
 	}
-	k, specError := kazaam.NewKazaam(string(specFile))
+
+	c := kazaam.NewDefaultConfig()
+	c.RegisterTransform("MyDefault", transform.Default)
+	k, specError := kazaam.New(string(specFile), c)
 	if specError != nil {
 		return nil, errors.New("Unable to load Kazaam specification file: " + specError.Error())
 	}
+
 	return k, nil
 }
 

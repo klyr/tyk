@@ -1,6 +1,6 @@
 [
 {
-  "operation": "default",
+  "operation": "MyDefault",
   "spec": {
     "newValue": "Transformed with Kaazam"
   }
